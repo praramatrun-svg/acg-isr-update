@@ -476,6 +476,16 @@
       gap: 8px;
     }
     .verified-banner.show { display: flex; }
+    .verified-banner svg { flex-shrink: 0; }
+    .verified-banner { min-width: 0; }
+    #verifiedText {
+      display: block;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     /* ─── PDPA Container ─── */
     .pdpa-box {
@@ -962,7 +972,7 @@
           </button>
         </div>
         <div class="verify-hint">
-          <span>💡 กรอกรหัสพนักงานเพื่อดึงข้อมูล ชื่อ-นามสกุล และฝ่ายจากฐานข้อมูล</span>
+          <span>💡 กรอกรหัสพนักงานเพื่อยืนยันชื่อ-นามสกุล และตำแหน่งจากฐานข้อมูล</span>
         </div>
         <div class="verified-banner" id="verifiedStrip">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
@@ -1415,22 +1425,13 @@ function handleVerifySuccess(emp) {
   const clean = value => String(value == null ? '' : value).trim();
   const name = clean(emp.name || emp.fullName ||
     [emp.title, emp.firstName, emp.lastName].filter(Boolean).join(' '));
-  const division = clean(emp.division || emp.divisionName || emp.departmentGroup);
-  const department = clean(emp.dept || emp.department);
-  const branch = clean(emp.branch || emp.branchName);
   const position = clean(emp.position || emp.jobTitle);
   const phone = clean(emp.phone || emp.mobile || emp.phoneNumber);
 
   isVerified = true;
-  const details = [
-    division && 'ฝ่าย: ' + division,
-    department && 'แผนก: ' + department,
-    branch && 'สาขา: ' + branch,
-    position && 'ตำแหน่ง: ' + position
-  ].filter(Boolean);
   document.getElementById('verifiedText').textContent =
     'ยืนยันแล้ว: ' + (name || 'พบรหัสพนักงาน') +
-    (details.length ? ' | ' + details.join(' | ') : ' | ไม่ได้รับข้อมูลฝ่าย/แผนก/สาขา/ตำแหน่งจาก API');
+    ' | ' + (position || 'ไม่ระบุตำแหน่ง');
   document.getElementById('verifiedStrip').classList.add('show');
   if (name) document.getElementById('f_name').value = name;
   // The updated employee sheet uses column H for position, not phone.
