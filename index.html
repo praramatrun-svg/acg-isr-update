@@ -1063,6 +1063,22 @@
         ข้อมูลยานพาหนะ
       </div>
 
+      <div class="form-group" style="margin-bottom:18px;">
+        <label class="form-label">ท่านมีรถยนต์หรือไม่ <span class="req">*</span></label>
+        <div class="radio-row" role="radiogroup" aria-label="ท่านมีรถยนต์หรือไม่">
+          <label class="radio-card" id="hasCarYesLabel" style="cursor:pointer;">
+            <input type="radio" name="hasCar" value="yes" onchange="setHasCar('yes')" style="accent-color:#003366;"/>
+            มีรถยนต์
+          </label>
+          <label class="radio-card" id="hasCarNoLabel" style="cursor:pointer;">
+            <input type="radio" name="hasCar" value="no" onchange="setHasCar('no')" style="accent-color:#003366;"/>
+            ไม่มีรถยนต์
+          </label>
+        </div>
+        <div id="noCarNotice" style="display:none;margin-top:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px;color:#166534;font-size:13px;">ระบบจะบันทึกสถานะว่าไม่มีรถยนต์ โดยไม่ต้องกรอกข้อมูลยานพาหนะและประกันภัย</div>
+      </div>
+
+      <div id="carDetails" style="display:none;">
       <div class="car-cards-list" id="carCards"></div>
 
       <button class="btn-add-vehicle" id="btnAddCar" onclick="addCarCard()">
@@ -1071,6 +1087,8 @@
         </svg>
         เพิ่มรถยนต์คันที่ <span id="nextCarNum">2</span>
       </button>
+
+      </div><!-- /carDetails -->
 
       <!-- Step 2 Actions -->
       <div class="form-actions">
@@ -1253,12 +1271,23 @@ const provinces = [
 let isVerified = false;
 let isConsented = false;
 let carCount = 0;
+let hasCarChoice = null;
 const carHrReg = {}; // Store HR reg answer per car { 1: 'yes', 2: 'no' }
 
 /* ─── Initialize ─── */
 window.onload = function() {
-  addCarCard(); // start with 1 car
+  // Wait for the employee to select whether they have a car.
 };
+
+function setHasCar(choice) {
+  hasCarChoice = choice;
+  const yes = choice === 'yes';
+  document.getElementById('hasCarYesLabel').classList.toggle('selected', yes);
+  document.getElementById('hasCarNoLabel').classList.toggle('selected', !yes);
+  document.getElementById('carDetails').style.display = yes ? 'block' : 'none';
+  document.getElementById('noCarNotice').style.display = yes ? 'none' : 'block';
+  if (yes && carCount === 0) addCarCard();
+}
 
 /* ─── Stepper Logic ─── */
 function setStepper(step) {
@@ -1332,7 +1361,7 @@ function verifyEmployee() {
   } else if (window.location.protocol.startsWith('http')) {
     // Vercel / Web Environment: call /api/verify
     fetch(`/api/verify?empId=${encodeURIComponent(id)}`)
-      .then(r => r.json())
+      .then(readApiJson)
       .then(res => {
         btn.disabled = false;
         txt.textContent = 'ตรวจสอบ';
@@ -1360,6 +1389,23 @@ function verifyEmployee() {
       }
     }, 350);
   }
+}
+
+
+async function readApiJson(response) {
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch {
+    const hint = response.status === 404
+      ? 'ไม่พบ Vercel API (404): ตรวจสอบ Root Directory และโฟลเดอร์ api ใน GitHub'
+      : response.status >= 500
+      ? 'Vercel API ขัดข้อง: ตรวจสอบ Environment Variables และ Function Logs'
+      : 'API ตอบกลับไม่ใช่ JSON: ตรวจสอบ URL หรือ Deployment ของ Vercel';
+    throw new Error(hint + ' [HTTP ' + response.status + ']');
+  }
+  if (!response.ok) throw new Error(data.message || ('API HTTP ' + response.status));
+  return data;
 }
 
 function handleVerifySuccess(emp) {
@@ -1830,7 +1876,11 @@ function submitForm() {
     return;
   }
 
-  const cards = document.querySelectorAll('.car-item');
+  if (!hasCarChoice) {
+    showToast('กรุณาเลือกว่าท่านมีรถยนต์หรือไม่', 'error');
+    return;
+  }
+  const cards = hasCarChoice === 'yes' ? document.querySelectorAll('.car-item') : [];
   const carsData = [];
 
   for (let i = 0; i < cards.length; i++) {
@@ -1905,6 +1955,7 @@ function submitForm() {
     name: name,
     phone: phone,
     pdpaConsent: isConsented,
+    hasCar: hasCarChoice === 'yes',
     cars: carsData
   };
 
@@ -1935,7 +1986,7 @@ function submitForm() {
       },
       body: JSON.stringify(payload)
     })
-      .then(r => r.json())
+      .then(readApiJson)
       .then(res => {
         submitBtn.disabled = false;
         submitTxt.textContent = 'ส่งข้อมูล';
@@ -1976,6 +2027,9 @@ function renderSuccess(payload, refCode) {
     <div class="summary-item"><span class="summary-key">เบอร์โทรศัพท์</span><span class="summary-val">${payload.phone}</span></div>
   `;
 
+  if (payload.hasCar === false) {
+    html += `<div class="summary-item"><span class="summary-key">สถานะรถยนต์</span><span class="summary-val">ไม่มีรถยนต์</span></div>`;
+  }
   payload.cars.forEach((c, idx) => {
     const expDisplay = (c.insMonth && c.insMonth !== '-' && c.insYear && c.insYear !== '-')
       ? `${c.insMonth} ${c.insYear}`
