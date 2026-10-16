@@ -1409,13 +1409,33 @@ async function readApiJson(response) {
 }
 
 function handleVerifySuccess(emp) {
+  // Support both old and new employee-field names returned by Apps Script.
+  // Empty values are omitted rather than displaying a misleading "- (-)".
+  emp = emp || {};
+  const clean = value => String(value == null ? '' : value).trim();
+  const name = clean(emp.name || emp.fullName ||
+    [emp.title, emp.firstName, emp.lastName].filter(Boolean).join(' '));
+  const division = clean(emp.division || emp.divisionName || emp.departmentGroup);
+  const department = clean(emp.dept || emp.department);
+  const branch = clean(emp.branch || emp.branchName);
+  const position = clean(emp.position || emp.jobTitle);
+  const phone = clean(emp.phone || emp.mobile || emp.phoneNumber);
+
   isVerified = true;
-  const deptStr = emp.dept ? ` | ${emp.dept}` : '';
-  const branchStr = emp.branch ? ` (${emp.branch})` : '';
-  document.getElementById('verifiedText').textContent = `ยืนยันแล้ว: ${emp.name}${deptStr}${branchStr}`;
+  const details = [
+    division && 'ฝ่าย: ' + division,
+    department && 'แผนก: ' + department,
+    branch && 'สาขา: ' + branch,
+    position && 'ตำแหน่ง: ' + position
+  ].filter(Boolean);
+  document.getElementById('verifiedText').textContent =
+    'ยืนยันแล้ว: ' + (name || 'พบรหัสพนักงาน') +
+    (details.length ? ' | ' + details.join(' | ') : ' | ไม่ได้รับข้อมูลฝ่าย/แผนก/สาขา/ตำแหน่งจาก API');
   document.getElementById('verifiedStrip').classList.add('show');
-  if (emp.name)  document.getElementById('f_name').value = emp.name;
-  if (emp.phone) document.getElementById('f_phone').value = emp.phone;
+  if (name) document.getElementById('f_name').value = name;
+  // The updated employee sheet uses column H for position, not phone.
+  // Never copy the position into the phone number field.
+  if (phone) document.getElementById('f_phone').value = phone;
   showToast('ยืนยันรหัสพนักงานสำเร็จ', 'success');
   updateNext1Button();
 }
