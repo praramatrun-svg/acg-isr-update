@@ -1,28 +1,19 @@
-import { callGas } from './_proxy.js';
-
+import {callGas} from './_proxy.js';
 export default async function handler(req, res) {
-  res.setHeader('Cache-Control', 'no-store');
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, message: 'Method not allowed' });
+  res.setHeader('Cache-Control','no-store');
+  if (req.method !== 'POST') return res.status(405).json({success:false,message:'Method not allowed'});
+  const p = req.body;
+  if (!p || typeof p !== 'object' || Array.isArray(p) ||
+      typeof p.empId !== 'string' || !p.empId.trim() ||
+      p.pdpaConsent !== true || typeof p.hasCar !== 'boolean' ||
+      !Array.isArray(p.cars) || (p.hasCar && (p.cars.length < 1 || p.cars.length > 20)) ||
+      (!p.hasCar && p.cars.length !== 0) ||
+      typeof p.submissionId !== 'string' || !/^[a-zA-Z0-9_-]{12,80}$/.test(p.submissionId)) {
+    return res.status(400).json({success:false,message:'ข้อมูลแบบสำรวจไม่ถูกต้อง'});
   }
-
-  const payload = req.body;
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
-      typeof payload.empId !== 'string' || !payload.empId.trim() ||
-      payload.pdpaConsent !== true ||
-      typeof payload.hasCar !== 'boolean' ||
-      !Array.isArray(payload.cars) ||
-      (payload.hasCar && (payload.cars.length < 1 || payload.cars.length > 20)) ||
-      (!payload.hasCar && payload.cars.length !== 0)) {
-    return res.status(400).json({ success: false, message: 'ข้อมูลแบบสำรวจไม่ถูกต้อง' });
-  }
-
-  try {
-    const result = await callGas({ ...payload, action: 'submit' });
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('AutoCorp submit failed:', error.message);
-    return res.status(502).json({ success: false, message: 'บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่' });
+  try { return res.status(200).json(await callGas({...p,action:'submit'}, 14000)); }
+  catch (err) {
+    console.error('submit:',err.message);
+    return res.status(504).json({success:false,uncertain:true,message:'ยังไม่ได้รับผลยืนยันจากระบบ กรุณากดตรวจสอบ/ส่งซ้ำด้วยคำขอเดิมเพื่อป้องกันข้อมูลซ้ำ'});
   }
 }
