@@ -1765,22 +1765,18 @@ function addCarCard() {
       <!-- Row 3: HR Registration Status (Compact Inline Banner) -->
       <div class="hr-reg-banner">
         <label class="form-label" style="margin-bottom:0; font-size:13px; font-weight:600;">
-          ท่านได้ลงทะเบียนยานพาหนะกับฝ่ายทรัพยากรบุคคล (HR) แล้วหรือไม่? <span class="req">*</span>
+          เคยลงทะเบียนรถยนต์คันนี้ในระบบ HR หรือไม่? <span class="req">*</span>
         </label>
         <div class="radio-row-compact">
           <div class="radio-card-sm" id="r_yes_${carCount}" onclick="selectCarRadio(${carCount}, 'yes')">
             <div class="radio-circle"><div class="radio-inner-dot"></div></div>
-            ลงทะเบียนแล้ว
+            เคยลงทะเบียน
           </div>
           <div class="radio-card-sm" id="r_no_${carCount}" onclick="selectCarRadio(${carCount}, 'no')">
             <div class="radio-circle"><div class="radio-inner-dot"></div></div>
-            ยังไม่ได้ลงทะเบียน
+            ไม่เคย
           </div>
         </div>
-      </div>
-      <div class="welfare-hint" id="welfare_hint_${carCount}" hidden>
-        <div class="welfare-hint-text">ท่านสามารถลงทะเบียนยานพาหนะผ่านระบบ Welfare เพื่อให้ข้อมูลเป็นปัจจุบันได้จากลิงก์ด้านล่าง</div>
-        <a class="welfare-hint-link" href="https://welfare.ach.co.th" target="_blank" rel="noopener noreferrer">เข้าสู่ระบบ Welfare (HR) ↗</a>
       </div>
 
       <!-- Combined Insurance Section -->
@@ -1972,8 +1968,6 @@ function selectCarRadio(carId, val) {
   const noCard  = document.getElementById('r_no_' + carId);
   if (yesCard) yesCard.classList.toggle('selected', val === 'yes');
   if (noCard)  noCard.classList.toggle('selected',  val === 'no');
-  const welfareHint = document.getElementById('welfare_hint_' + carId);
-  if (welfareHint) welfareHint.hidden = val !== 'no';
 }
 
 /* ─── Navigation ─── */
@@ -2169,7 +2163,7 @@ function renderSuccess(payload, refCode) {
       <div class="summary-item"><span class="summary-key">ยี่ห้อ / รุ่น</span><span class="summary-val">${c.brand} ${c.model}</span></div>
       <div class="summary-item"><span class="summary-key">ปีจดทะเบียน</span><span class="summary-val">${c.year} (พ.ศ. ${parseInt(c.year) + 543})</span></div>
       <div class="summary-item"><span class="summary-key">ทะเบียนรถ</span><span class="summary-val">${c.plate.toUpperCase()} (${c.province})</span></div>
-      <div class="summary-item"><span class="summary-key">ลงทะเบียนยานพาหนะกับ HR</span><span class="summary-val">${c.hrReg === 'yes' ? 'ลงทะเบียนแล้ว' : 'ยังไม่ได้ลงทะเบียน'}</span></div>
+      <div class="summary-item"><span class="summary-key">เคยลงทะเบียนในระบบ HR</span><span class="summary-val">${c.hrReg === 'yes' ? 'เคยลงทะเบียน ✅' : 'ไม่เคย ❌'}</span></div>
       <div class="summary-item"><span class="summary-key">ประกันภัยภาคสมัครใจ</span><span class="summary-val">${c.insTier}${c.insCompany && c.insCompany !== '-' ? ' (' + c.insCompany + ')' : ''}</span></div>
       <div class="summary-item"><span class="summary-key">เดือน/ปี ที่ประกันหมดอายุ</span><span class="summary-val">${expDisplay}</span></div>
       <div class="summary-item"><span class="summary-key">สิทธิพิเศษพนักงานเครือ ACG</span><span class="summary-val">${c.insWelfare === 'สนใจ' ? 'สนใจ ✅' : 'ไม่สนใจ'}</span></div>
