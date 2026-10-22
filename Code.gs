@@ -27,6 +27,7 @@ function doPost(e) {
     const p = JSON.parse(e.postData.contents);
     if (p.action === 'verify') return json_(verifyEmployeeId(p.empId));
     if (p.action === 'submit') return json_(submitSurvey(p));
+    if (p.action === 'status') return json_(submissionStatus_(p));
     return json_({success: false, message: 'Invalid action'});
   } catch (err) {
     console.error(err);
@@ -39,19 +40,18 @@ function employee_(empId) {
   if (!sh) throw new Error('ไม่พบแท็บ ' + EMPLOYEE_TAB);
   const id = String(empId || '').trim().toUpperCase();
   if (!id) return null;
-  const values = sh.getDataRange().getDisplayValues();
-  for (let i = 1; i < values.length; i++) {
-    const r = values[i];
-    if (String(r[0] || '').trim().toUpperCase() === id) {
-      return {
-        id: r[0],
-        name: [r[1], r[2], r[3]].filter(Boolean).join(' '),
-        division: r[4] || '',
-        dept: r[5] || '',
-        branch: r[6] || '',
-        position: r[7] || ''
-      };
-    }
+  // อ่านเฉพาะคอลัมน์รหัสพนักงาน แล้วอ่าน A:H เพียงแถวที่พบ
+  const last = sh.getLastRow();
+  if (last < 2) return null;
+  const finder = sh.getRange(2, 1, last - 1, 1)
+    .createTextFinder(id).matchEntireCell(true).matchCase(false);
+  const cell = finder.findNext();
+  if (cell) {
+    const r = sh.getRange(cell.getRow(), 1, 1, 8).getDisplayValues()[0];
+    if (String(r[0]).trim().toUpperCase() === id) return {
+      id: r[0], name: [r[1], r[2], r[3]].filter(Boolean).join(' '),
+      division: r[4] || '', dept: r[5] || '', branch: r[6] || '', position: r[7] || ''
+    };
   }
   return null;
 }
@@ -89,13 +89,43 @@ function yearPair_(yearValue) {
   return ce === null ? ['', ''] : [String(ce), String(ce + 543)];
 }
 
+// ID ที่ลูกค้าส่งมาต้องใช้ซ้ำเมื่อกดส่งอีกครั้งหลังเกิด timeout
+function submissionRef_(id) {
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{12,80}$/.test(id)) {
+    throw new Error('รหัสคำขอไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ');
+  }
+  return 'ACG-' + id;
+}
+function findSubmission_(sh, ref, empId) {
+  const last = sh.getLastRow();
+  if (last < 2) return null;
+  const found = sh.getRange(2, 2, last - 1, 1)
+    .createTextFinder(ref).matchEntireCell(true).matchCase(true).findNext();
+  if (!found) return null;
+  const row = found.getRow();
+  const storedEmp = String(sh.getRange(row, 3).getDisplayValue()).trim().toUpperCase();
+  if (storedEmp !== String(empId).trim().toUpperCase()) {
+    throw new Error('รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว');
+  }
+  return {success: true, saved: true, duplicate: true, refCode: ref,
+    message: 'ข้อมูลนี้บันทึกไว้แล้ว', timestamp: sh.getRange(row,1).getDisplayValue()};
+}
+function submissionStatus_(p) {
+  try {
+    const ref = submissionRef_(p.submissionId);
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RESPONSE_TAB);
+    if (!sh) throw new Error('ไม่พบแท็บ '+RESPONSE_TAB);
+    return findSubmission_(sh,ref,p.empId) ||
+      {success:true,saved:false,message:'ยังไม่พบข้อมูลของคำขอนี้'};
+  } catch(err) { console.error(err);return {success:false,message:'ตรวจสอบสถานะไม่ได้'}; }
+}
+
 function submitSurvey(p) {
   if (!p || typeof p !== 'object') return {success: false, message: 'ข้อมูลแบบสำรวจไม่ถูกต้อง'};
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(15000)) {
-    return {success: false, message: 'ระบบกำลังรับข้อมูลจำนวนมาก กรุณาลองอีกครั้ง'};
-  }
+  let lock = null;
+  let locked = false;
   try {
+    const ref = submissionRef_(p.submissionId);
     const emp = employee_(p.empId);
     if (!emp) return {success: false, message: 'ไม่พบรหัสพนักงาน'};
     if (p.pdpaConsent !== true) {
@@ -121,7 +151,7 @@ function submitSurvey(p) {
 
     const now = new Date();
     const stamp = Utilities.formatDate(now, TZ, 'dd/MM/yyyy HH:mm:ss');
-    const ref = 'ACG-' + Utilities.formatDate(now, TZ, 'yyyyMMdd-HHmmss') + '-' + Utilities.getUuid().slice(0, 6).toUpperCase();
+    // เลขอ้างอิงคงเดิมทุกครั้งที่ส่ง submissionId เดิม
 
     // A-S รักษาลำดับเดิม; T บันทึกประเภทยานพาหนะ
     const noVehicleRow = [stamp, ref, safe_(emp.id), safe_(emp.name), safe_(p.phone), '', 0,
@@ -147,14 +177,21 @@ function submitSurvey(p) {
     if (rows.some(function(row) {return row.length !== RESPONSE_COLUMNS;})) {
       throw new Error('โครงสร้างข้อมูลไม่ครบ 20 คอลัมน์');
     }
+    // ล็อกช่วงตรวจรายการซ้ำ + เขียนข้อมูล (atomic check-and-insert)
+    lock = LockService.getScriptLock();
+    locked = lock.tryLock(5000);
+    if (!locked) return {success:false,message:'ระบบกำลังรับข้อมูลจำนวนมาก กรุณาลองอีกครั้ง'};
+    const existing = findSubmission_(sh, ref, emp.id);
+    if (existing) return existing;
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, RESPONSE_COLUMNS).setValues(rows);
+    SpreadsheetApp.flush();
     return {success: true, message: 'บันทึกสำเร็จ', refCode: ref, timestamp: stamp};
   } catch (err) {
     console.error(err);
-    const messages = ['ข้อมูลยานพาหนะไม่ถูกต้อง', 'กรุณาเลือกประเภทยานพาหนะให้ครบทุกคัน',
+    const messages = ['รหัสคำขอไม่ถูกต้อง กรุณารีเฟรชหน้าเว็บ', 'ข้อมูลยานพาหนะไม่ถูกต้อง', 'กรุณาเลือกประเภทยานพาหนะให้ครบทุกคัน',
       'กรุณากรอกข้อมูลยานพาหนะและประกันภัยให้ครบ'];
     return {success: false, message: messages.indexOf(err.message) !== -1 ? err.message : 'ไม่สามารถบันทึกข้อมูลได้'};
   } finally {
-    lock.releaseLock();
+    if (locked && lock) lock.releaseLock();
   }
 }
