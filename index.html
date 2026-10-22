@@ -914,6 +914,24 @@
   .acg-promo-continue { flex-shrink:0; margin:10px 14px 14px; min-height:43px; padding:9px 16px; border:0; border-radius:9px; background:#003366; color:#fff; font:600 14px Sarabun,sans-serif; cursor:pointer; }
   .acg-promo-continue:hover { background:#002244; }
   @media(max-width:500px) { .acg-promo-overlay{padding:10px}.acg-promo-panel{width:100%;max-height:calc(100dvh - 20px)}.acg-promo-photo{max-height:calc(100dvh - 100px)} }
+
+  /* Compact single-line Welfare registration question and link */
+  .hr-reg-banner { gap: 8px; padding: 8px 10px; flex-wrap: nowrap; }
+  .hr-reg-banner > .form-label { white-space: nowrap; font-size: 12px !important; min-width: 0; flex: 1 1 auto; }
+  .hr-reg-banner .radio-row-compact { flex: 0 0 auto; gap: 5px; width: auto; }
+  .hr-reg-banner .radio-card-sm { flex: 0 0 auto; padding: 6px 10px; gap: 5px; white-space: nowrap; font-size: 12px; }
+  .welfare-hint { margin: 5px 0 10px; padding: 9px 12px; border: 1px solid #bfdbfe; border-radius: 8px; background:#eff6ff; }
+  .welfare-hint[hidden] { display: none !important; }
+  .welfare-hint-text { font-size: 12px; line-height: 1.5; color:#334155; }
+  .welfare-inline-link { color:#003366; font-weight:700; text-decoration: underline; text-underline-offset:2px; white-space:nowrap; }
+  .welfare-inline-link:hover { color:#0052cc; }
+  @media (max-width: 640px) {
+    .hr-reg-banner { flex-direction: row; align-items: center; gap:6px; padding:8px; }
+    .hr-reg-banner > .form-label { white-space: normal; overflow-wrap: normal; word-break: normal; line-height: 1.35; font-size:11.5px !important; }
+    .hr-reg-banner .radio-row-compact { flex:0 0 auto; width:auto; gap:4px; }
+    .hr-reg-banner .radio-card-sm { flex:0 0 auto; padding:6px 7px; font-size:11.5px; }
+  }
+
 </style>
 </head>
 <body>
@@ -1765,22 +1783,21 @@ function addCarCard() {
       <!-- Row 3: HR Registration Status (Compact Inline Banner) -->
       <div class="hr-reg-banner">
         <label class="form-label" style="margin-bottom:0; font-size:13px; font-weight:600;">
-          ท่านได้ลงทะเบียนยานพาหนะกับฝ่ายทรัพยากรบุคคล (HR) แล้วหรือไม่? <span class="req">*</span>
+          ท่านเคยลงทะเบียนรถยนต์ในระบบ Welfare หรือไม่? <span class="req">*</span>
         </label>
         <div class="radio-row-compact">
           <div class="radio-card-sm" id="r_yes_${carCount}" onclick="selectCarRadio(${carCount}, 'yes')">
             <div class="radio-circle"><div class="radio-inner-dot"></div></div>
-            ลงทะเบียนแล้ว
+            เคย
           </div>
           <div class="radio-card-sm" id="r_no_${carCount}" onclick="selectCarRadio(${carCount}, 'no')">
             <div class="radio-circle"><div class="radio-inner-dot"></div></div>
-            ยังไม่ได้ลงทะเบียน
+            ไม่เคย
           </div>
         </div>
       </div>
       <div class="welfare-hint" id="welfare_hint_${carCount}" hidden>
-        <div class="welfare-hint-text">ท่านสามารถลงทะเบียนยานพาหนะผ่านระบบ Welfare เพื่อให้ข้อมูลเป็นปัจจุบันได้จากลิงก์ด้านล่าง</div>
-        <a class="welfare-hint-link" href="https://welfare.ach.co.th" target="_blank" rel="noopener noreferrer">เข้าสู่ระบบ Welfare (HR) ↗</a>
+        <div class="welfare-hint-text">ท่านสามารถลงทะเบียนยานพาหนะผ่านระบบ <a class="welfare-inline-link" href="https://welfare.ach.co.th" target="_blank" rel="noopener noreferrer" aria-label="เปิดระบบ Welfare ในแท็บใหม่">Welfare ↗</a></div>
       </div>
 
       <!-- Combined Insurance Section -->
@@ -2198,7 +2215,7 @@ function renderSuccess(payload, refCode) {
       <div class="summary-item"><span class="summary-key">ยี่ห้อ / รุ่น</span><span class="summary-val">${c.brand} ${c.model}</span></div>
       <div class="summary-item"><span class="summary-key">ปีจดทะเบียน</span><span class="summary-val">${c.year} (พ.ศ. ${parseInt(c.year) + 543})</span></div>
       <div class="summary-item"><span class="summary-key">ทะเบียนรถ</span><span class="summary-val">${c.plate.toUpperCase()} (${c.province})</span></div>
-      <div class="summary-item"><span class="summary-key">ลงทะเบียนยานพาหนะกับ HR</span><span class="summary-val">${c.hrReg === 'yes' ? 'ลงทะเบียนแล้ว' : 'ยังไม่ได้ลงทะเบียน'}</span></div>
+      <div class="summary-item"><span class="summary-key">ลงทะเบียนยานพาหนะกับ HR</span><span class="summary-val">${c.hrReg === 'yes' ? 'เคย' : 'ไม่เคย'}</span></div>
       <div class="summary-item"><span class="summary-key">ประกันภัยภาคสมัครใจ</span><span class="summary-val">${c.insTier}${c.insCompany && c.insCompany !== '-' ? ' (' + c.insCompany + ')' : ''}</span></div>
       <div class="summary-item"><span class="summary-key">เดือน/ปี ที่ประกันหมดอายุ</span><span class="summary-val">${expDisplay}</span></div>
       <div class="summary-item"><span class="summary-key">สิทธิพิเศษพนักงานเครือ ACG</span><span class="summary-val">${c.insWelfare === 'สนใจ' ? 'สนใจ ✅' : 'ไม่สนใจ'}</span></div>
